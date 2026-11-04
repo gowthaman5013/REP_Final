@@ -35,7 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import com.smartwater.billing.common.ml.HouseholdProperties;
+import com.smartwater.billing.common.config.HouseholdProperties;
 import com.smartwater.billing.resident.entity.HouseholdSizeHistory;
 import com.smartwater.billing.resident.repository.HouseholdSizeHistoryRepository;
 import jakarta.persistence.EntityManager;
@@ -771,6 +771,17 @@ public class OccupancyService {
                 other.setReviewedBy(ownerUser.getName());
                 other.setRejectionReason("Apartment occupied by another approved resident.");
                 occupancyRequestRepository.save(other);
+
+                Resident otherRes = other.getResident();
+                if (otherRes != null) {
+                    otherRes.setApartmentNumber("REJECTED");
+                    otherRes.setAccountStatus(Resident.AccountStatus.INACTIVE);
+                    if (otherRes.getUser() != null) {
+                        otherRes.getUser().setStatus(User.UserStatus.REJECTED);
+                        userRepository.save(otherRes.getUser());
+                    }
+                    residentRepository.save(otherRes);
+                }
             }
 
             // 10. Send resident approval notification
@@ -792,6 +803,16 @@ public class OccupancyService {
             request.setReviewedBy(ownerUser.getName());
             request.setRejectionReason(reason);
             request = occupancyRequestRepository.save(request);
+
+            if (resident != null) {
+                resident.setApartmentNumber("REJECTED");
+                resident.setAccountStatus(Resident.AccountStatus.INACTIVE);
+                if (resident.getUser() != null) {
+                    resident.getUser().setStatus(User.UserStatus.REJECTED);
+                    userRepository.save(resident.getUser());
+                }
+                residentRepository.save(resident);
+            }
 
             // Send resident rejection notification
             Notification notif = Notification.builder()

@@ -8,6 +8,7 @@ export default function OwnerResidentsPage() {
 
   // Requests state
   const [requests, setRequests] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [requestStatusFilter, setRequestStatusFilter] = useState('PENDING'); // 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [reviewAction, setReviewAction] = useState(null); // 'approve' | 'reject'
@@ -30,6 +31,14 @@ export default function OwnerResidentsPage() {
         params: statusParam ? { status: statusParam } : {}
       });
       setRequests(res.data || []);
+
+      if (requestStatusFilter === 'PENDING') {
+        setPendingCount((res.data || []).length);
+      } else {
+        API.get('/owner/occupancy-requests', { params: { status: 'PENDING' } })
+          .then(pRes => setPendingCount((pRes.data || []).length))
+          .catch(() => {});
+      }
     } catch (err) {
       console.error('Failed to fetch occupancy requests:', err);
     }
@@ -137,13 +146,13 @@ export default function OwnerResidentsPage() {
   const activeResidents = residents.filter(r =>
     r.accountStatus === 'ACTIVE' &&
     r.apartmentNumber &&
+    r.apartmentNumber.toUpperCase() !== 'PENDING' &&
+    r.apartmentNumber.toUpperCase() !== 'REJECTED' &&
     !r.apartmentNumber.startsWith('FORMER-') &&
     r.apartmentNumber.toLowerCase() !== 'vacated'
   );
 
   if (loading) return <LoadingSpinner text="Loading Resident Onboarding & Management..." />;
-
-  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
 
   return (
     <div className="container-fluid py-4">

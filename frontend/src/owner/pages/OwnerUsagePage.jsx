@@ -372,7 +372,6 @@ export default function OwnerUsagePage() {
                   <th>Previous Reading</th>
                   <th>Current Reading</th>
                   <th>Units Consumed</th>
-                  <th>Leak Status</th>
                   <th className="pe-3">Recorded At</th>
                 </tr>
               </thead>
@@ -411,21 +410,6 @@ export default function OwnerUsagePage() {
                       <td className="text-dark fw-semibold">{Number(u.currentReading || 0).toFixed(1)} m³</td>
                       <td>
                         <span className="fw-bold text-dark fs-6">{Number(u.unitsConsumed || 0).toFixed(1)} kL</span>
-                      </td>
-                      <td>
-                        {u.anomalyStatus === 'POTENTIAL_LEAK' ? (
-                          <span className="badge px-2.5 py-1 rounded-2 fw-semibold fs-8" style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
-                            <i className="bi bi-exclamation-triangle-fill me-1" style={{ color: '#DC2626' }}></i> Potential Leak
-                          </span>
-                        ) : u.anomalyStatus === 'INSUFFICIENT_HISTORY' ? (
-                          <span className="badge px-2.5 py-1 rounded-2 fw-semibold fs-8" style={{ backgroundColor: '#F8FAFC', color: '#475569', border: '1px solid #CBD5E1' }}>
-                            <i className="bi bi-info-circle-fill me-1" style={{ color: '#64748B' }}></i> Insufficient History
-                          </span>
-                        ) : (
-                          <span className="badge px-2.5 py-1 rounded-2 fw-semibold fs-8" style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #86EFAC' }}>
-                            <i className="bi bi-check-circle-fill me-1" style={{ color: '#16A34A' }}></i> Normal
-                          </span>
-                        )}
                       </td>
                       <td className="text-muted small pe-3">
                         {u.recordedAt ? u.recordedAt.substring(0, 10) : 'N/A'}

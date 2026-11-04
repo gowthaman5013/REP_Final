@@ -84,6 +84,8 @@ public class SuperAdminService {
         long totalResidents = residentRepository.findAll().stream()
                 .filter(r -> r.getAccountStatus() == Resident.AccountStatus.ACTIVE
                         && r.getApartmentNumber() != null
+                        && !r.getApartmentNumber().equalsIgnoreCase("PENDING")
+                        && !r.getApartmentNumber().equalsIgnoreCase("REJECTED")
                         && !r.getApartmentNumber().startsWith("FORMER-")
                         && !r.getApartmentNumber().equalsIgnoreCase("Vacated"))
                 .count();
@@ -186,7 +188,7 @@ public class SuperAdminService {
             for (ResidentBalanceRecord rec : balanceMap.values()) {
                 totalBalance += rec.getTotalBalance();
                 if (residentSummary.length() > 0) residentSummary.append(", ");
-                residentSummary.append(String.format("%s (Flat %s: ₹%.2f)",
+                residentSummary.append(String.format("%s (Flat %s: â‚¹%.2f)",
                         rec.getResident().getName(),
                         rec.getResident().getApartmentNumber() != null ? rec.getResident().getApartmentNumber() : "N/A",
                         rec.getTotalBalance()));
@@ -205,7 +207,7 @@ public class SuperAdminService {
                             .title("Urgent: Super Admin Notice - Settle Outstanding Water Bill")
                             .message(String.format(
                                     "Super Admin has reviewed the property billing records and requested all billing for %s to be finished and settled immediately. " +
-                                    "You have an outstanding water balance of ₹%.2f. Please clear your dues promptly in your resident dashboard.",
+                                    "You have an outstanding water balance of â‚¹%.2f. Please clear your dues promptly in your resident dashboard.",
                                     buildingName,
                                     rec.getTotalBalance()
                             ))
@@ -272,7 +274,7 @@ public class SuperAdminService {
                 .setParameter("email", ownerEmail)
                 .setParameter("phone", ownerPhone)
                 .setParameter("details", String.format(
-                        "Deletion blocked: %d resident(s) have pending balance payments totaling ₹%.2f. Super Admin requested owner and residents to finish all billing.",
+                        "Deletion blocked: %d resident(s) have pending balance payments totaling â‚¹%.2f. Super Admin requested owner and residents to finish all billing.",
                         balanceMap.size(), totalBalance))
                 .executeUpdate();
             } catch (Exception ex) {
@@ -281,7 +283,7 @@ public class SuperAdminService {
 
             // D. Notify Super Admin by throwing BadRequestException
             throw new BadRequestException(String.format(
-                    "Cannot delete building owner '%s': %d resident(s) have pending balance payments totaling ₹%.2f [%s]. " +
+                    "Cannot delete building owner '%s': %d resident(s) have pending balance payments totaling â‚¹%.2f [%s]. " +
                     "Super Admin has blocked deletion and dispatched notifications requesting all billing to be finished and settled.",
                     owner.getName(),
                     balanceMap.size(),

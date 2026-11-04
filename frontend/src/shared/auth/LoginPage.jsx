@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -9,8 +9,20 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useContext(AuthContext);
+  const { user, login } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'SUPER_ADMIN') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === 'BUILDING_OWNER') {
+        navigate('/owner/dashboard', { replace: true });
+      } else if (user.role === 'RESIDENT') {
+        navigate('/resident/dashboard', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const handleRoleSelect = (role) => {
     setActiveRole(role);

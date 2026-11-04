@@ -1,7 +1,6 @@
 package com.smartwater.billing.common.service;
 
 import com.smartwater.billing.common.entity.*;
-import com.smartwater.billing.owner.entity.*;
 import com.smartwater.billing.resident.entity.*;
 import com.smartwater.billing.resident.repository.NotificationRepository;
 import com.smartwater.billing.resident.repository.ResidentRepository;
@@ -25,38 +24,16 @@ public class AlertEngineService {
     private final ResidentRepository residentRepository;
     private final EmailService emailService;
 
-    public AlertEngineService(WaterMeterRepository waterMeterRepository, WaterUsageRepository waterUsageRepository, NotificationRepository notificationRepository, ResidentRepository residentRepository, EmailService emailService) {
+    public AlertEngineService(WaterMeterRepository waterMeterRepository,
+                              WaterUsageRepository waterUsageRepository,
+                              NotificationRepository notificationRepository,
+                              ResidentRepository residentRepository,
+                              EmailService emailService) {
         this.waterMeterRepository = waterMeterRepository;
         this.waterUsageRepository = waterUsageRepository;
         this.notificationRepository = notificationRepository;
         this.residentRepository = residentRepository;
         this.emailService = emailService;
-    }
-
-
-    public String evaluateLeakStatus(Long meterId, Double currentUnits) {
-        List<WaterUsage> logs = waterUsageRepository.findByMeterMeterIdOrderByYearDescMonthDesc(meterId);
-        if (logs.size() < 2) {
-            return "INSUFFICIENT_HISTORY";
-        }
-
-        double sum = 0.0;
-        for (WaterUsage logItem : logs) {
-            sum += logItem.getUnitsConsumed();
-        }
-        double mean = sum / logs.size();
-
-        double varianceSum = 0.0;
-        for (WaterUsage logItem : logs) {
-            varianceSum += Math.pow(logItem.getUnitsConsumed() - mean, 2);
-        }
-        double stdDev = Math.sqrt(varianceSum / logs.size());
-        double leakThreshold = mean + (2 * stdDev);
-
-        if (currentUnits > leakThreshold && currentUnits > 10.0) {
-            return "POTENTIAL_LEAK";
-        }
-        return "NORMAL";
     }
 
     public void checkOverUsageAlerts() {
@@ -90,7 +67,6 @@ public class AlertEngineService {
                         String message = String.format(
                                 "Your water consumption is %.2f kL, which is above the recommended %.2f kL monthly threshold (Excess: %.2f kL).\n\n" +
                                 "Try:\n" +
-                                "• Fixing leaks\n" +
                                 "• Reducing unnecessary water usage\n" +
                                 "• Monitoring daily consumption",
                                 currentUnits, monthlyLimit, excess
@@ -105,77 +81,6 @@ public class AlertEngineService {
                         notificationRepository.save(alert);
 
                         emailService.sendNotificationEmail(resident.getEmail(), resident.getName(), title, message);
-                    }
-                }
-            }
-        }
-    }
-
-    public void runStatisticalLeakAudit() {
-        log.info("Running Statistical Leak Audit (Mean + 2 * StdDev)...");
-        List<WaterMeter> meters = waterMeterRepository.findAll();
-        for (WaterMeter m : meters) {
-            List<WaterUsage> logs = waterUsageRepository.findByMeterMeterIdOrderByYearDescMonthDesc(m.getMeterId());
-            if (logs.size() < 2) continue;
-
-            double latestUsage = logs.get(0).getUnitsConsumed();
-            
-            double sum = 0.0;
-            for (WaterUsage logItem : logs) sum += logItem.getUnitsConsumed();
-            double mean = Math.round((sum / logs.size()) * 100.0) / 100.0;
-
-            double varianceSum = 0.0;
-            for (WaterUsage logItem : logs) varianceSum += Math.pow(logItem.getUnitsConsumed() - mean, 2);
-            double stdDev = Math.sqrt(varianceSum / logs.size());
-            double leakThreshold = Math.round((mean + (2 * stdDev)) * 100.0) / 100.0;
-
-            String status = evaluateLeakStatus(m.getMeterId(), latestUsage);
-
-            if ("POTENTIAL_LEAK".equals(status)) {
-                Resident resident = m.getResident();
-                if (resident != null && resident.getBuilding() != null && resident.getBuilding().getOwner() != null) {
-                    BuildingOwner owner = resident.getBuilding().getOwner();
-                    String ownerEmail = owner.getUser() != null ? owner.getUser().getEmail() : owner.getPhone();
-
-                    String title = "🚨 Water Usage Anomaly Detected";
-                    
-                    // Duplicate Alert Protection
-                    List<Notification> existingAlerts = notificationRepository.findByResidentResidentIdOrderByCreatedAtDesc(resident.getResidentId());
-                    boolean duplicateExists = existingAlerts.stream().anyMatch(n -> 
-                        title.equalsIgnoreCase(n.getTitle()) && 
-                        n.getCreatedAt() != null && 
-                        n.getCreatedAt().isAfter(LocalDateTime.now().minusDays(25))
-                    );
-
-                    if (duplicateExists) {
-                        log.info("Anomaly report already logged for meter {}. Skipping duplicate notification.", m.getMeterNumber());
-                        continue;
-                    }
-
-                    String reportMessage = String.format(
-                            "Water Usage Anomaly Detected\n\n" +
-                            "Apartment: %s\n" +
-                            "Resident: %s\n" +
-                            "Meter: %s\n" +
-                            "Current Usage: %.2f kL\n" +
-                            "Historical Average: %.2f kL\n" +
-                            "Detection Threshold: %.2f kL\n\n" +
-                            "Status: POTENTIAL_LEAK",
-                            resident.getApartmentNumber(), resident.getName(), m.getMeterNumber(), latestUsage, mean, leakThreshold
-                    );
-
-                    // Notify Resident
-                    Notification residentAlert = Notification.builder()
-                            .resident(resident)
-                            .title(title)
-                            .message("Warning! Unusual high water consumption detected on your meter (" + latestUsage + " kL). Potential leak identified.")
-                            .isRead(false)
-                            .build();
-                    notificationRepository.save(residentAlert);
-
-                    // Email Building Owner / Admin
-                    if (ownerEmail != null && !ownerEmail.isEmpty()) {
-                        emailService.sendNotificationEmail(ownerEmail, owner.getName(), title, reportMessage);
                     }
                 }
             }

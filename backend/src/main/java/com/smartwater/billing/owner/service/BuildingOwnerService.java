@@ -28,6 +28,8 @@ import com.smartwater.billing.resident.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -98,9 +100,54 @@ public class BuildingOwnerService {
     public OwnerDashboardStats getOwnerDashboardStats(String email) {
         BuildingOwner owner = getOwnerByUserEmail(email);
         List<Building> buildings = buildingRepository.findByOwner(owner);
+
+        // Self-heal / reconcile residents with their actual occupancy status
+        try {
+            List<Resident> allOwnerResidents = residentRepository.findByBuildingOwnerOwnerId(owner.getOwnerId());
+            for (Resident r : allOwnerResidents) {
+                Optional<ApartmentOccupancy> activeOcc = occupancyRepository.findActiveByResidentEmail(r.getEmail(), OccupancyStatus.ACTIVE);
+                if (activeOcc.isPresent()) {
+                    ApartmentOccupancy occ = activeOcc.get();
+                    boolean changed = false;
+                    if (r.getAccountStatus() != Resident.AccountStatus.ACTIVE) {
+                        r.setAccountStatus(Resident.AccountStatus.ACTIVE);
+                        changed = true;
+                    }
+                    String currentRoom = occ.getApartment().getRoomNumber();
+                    if (currentRoom != null && !currentRoom.equals(r.getApartmentNumber())) {
+                        r.setApartmentNumber(currentRoom);
+                        changed = true;
+                    }
+                    if (changed) {
+                        residentRepository.save(r);
+                    }
+                } else {
+                    boolean hasPending = occupancyRequestRepository.findActiveRequestByResidentId(r.getResidentId(), OccupancyRequest.RequestStatus.PENDING).isPresent();
+                    if (!hasPending) {
+                        boolean changed = false;
+                        if (r.getAccountStatus() != Resident.AccountStatus.INACTIVE) {
+                            r.setAccountStatus(Resident.AccountStatus.INACTIVE);
+                            changed = true;
+                        }
+                        if ("PENDING".equalsIgnoreCase(r.getApartmentNumber())) {
+                            r.setApartmentNumber("REJECTED");
+                            changed = true;
+                        }
+                        if (changed) {
+                            residentRepository.save(r);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error reconciling residents in dashboard stats: {}", e.getMessage());
+        }
+
         long totalResidents = residentRepository.findByBuildingOwnerOwnerId(owner.getOwnerId()).stream()
                 .filter(r -> r.getAccountStatus() == Resident.AccountStatus.ACTIVE
                         && r.getApartmentNumber() != null
+                        && !r.getApartmentNumber().equalsIgnoreCase("PENDING")
+                        && !r.getApartmentNumber().equalsIgnoreCase("REJECTED")
                         && !r.getApartmentNumber().startsWith("FORMER-")
                         && !r.getApartmentNumber().equalsIgnoreCase("Vacated"))
                 .count();
@@ -125,17 +172,8 @@ public class BuildingOwnerService {
                     .count();
         } catch (Exception ignored) {}
 
-        // 3. Count pending invitations from residents table
-        long pendingResidentTableInvitations = residentRepository.findByBuildingOwnerOwnerId(owner.getOwnerId()).stream()
-                .filter(r -> r.getInvitationStatus() == com.smartwater.billing.resident.entity.Resident.InvitationStatus.PENDING
-                        || "PENDING".equalsIgnoreCase(r.getApartmentNumber()))
-                .count();
-
         // Total pending requests requiring owner review/action
         long totalPending = pendingOccupancyRequests + pendingOwnerInvitations;
-        if (totalPending == 0 && pendingResidentTableInvitations > 0) {
-            totalPending = pendingResidentTableInvitations;
-        }
 
         long totalBills = billRepository.findByOwnerId(owner.getOwnerId()).size();
         Double totalRev = billRepository.getTotalRevenueByOwner(owner.getOwnerId());

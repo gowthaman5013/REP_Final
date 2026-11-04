@@ -3,7 +3,7 @@ package com.smartwater.billing.resident.service;
 import com.smartwater.billing.common.entity.User;
 import com.smartwater.billing.common.exception.BadRequestException;
 import com.smartwater.billing.common.exception.ResourceNotFoundException;
-import com.smartwater.billing.common.ml.HouseholdProperties;
+import com.smartwater.billing.common.config.HouseholdProperties;
 import com.smartwater.billing.common.repository.UserRepository;
 import com.smartwater.billing.owner.entity.Apartment;
 import com.smartwater.billing.owner.entity.Building;
@@ -280,6 +280,20 @@ public class HouseholdService {
                         .findFirstByOccupancyOccupancyIdAndStatusOrderByEffectiveFromDesc(occ.getOccupancyId(), "ACTIVE");
                 if (latestHist.isPresent()) {
                     lastUpdated = latestHist.get().getCreatedAt();
+                }
+            } else {
+                Optional<Resident> resOpt = residentRepository.findByBuildingBuildingId(buildingId).stream()
+                        .filter(r -> r.getAccountStatus() == Resident.AccountStatus.ACTIVE
+                                && apt.getRoomNumber() != null
+                                && apt.getRoomNumber().equalsIgnoreCase(r.getApartmentNumber()))
+                        .findFirst();
+                if (resOpt.isPresent()) {
+                    Resident r = resOpt.get();
+                    residentName = r.getName();
+                    residentEmail = r.getEmail();
+                } else {
+                    // Skip unoccupied apartments (no active resident occupancy)
+                    continue;
                 }
             }
 

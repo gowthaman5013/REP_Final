@@ -26,17 +26,15 @@ public class WaterUsageService {
     private final BillingCycleRepository cycleRepository;
     private final NotificationRepository notificationRepository;
     private final BuildingOwnerService ownerService;
-    private final AlertEngineService alertEngineService;
     private final EmailService emailService;
 
-    public WaterUsageService(WaterUsageRepository usageRepository, WaterMeterRepository meterRepository, ResidentRepository residentRepository, BillingCycleRepository cycleRepository, NotificationRepository notificationRepository, BuildingOwnerService ownerService, AlertEngineService alertEngineService, EmailService emailService) {
+    public WaterUsageService(WaterUsageRepository usageRepository, WaterMeterRepository meterRepository, ResidentRepository residentRepository, BillingCycleRepository cycleRepository, NotificationRepository notificationRepository, BuildingOwnerService ownerService, EmailService emailService) {
         this.usageRepository = usageRepository;
         this.meterRepository = meterRepository;
         this.residentRepository = residentRepository;
         this.cycleRepository = cycleRepository;
         this.notificationRepository = notificationRepository;
         this.ownerService = ownerService;
-        this.alertEngineService = alertEngineService;
         this.emailService = emailService;
     }
 
@@ -85,7 +83,7 @@ public class WaterUsageService {
         int month = cycle.getStartDate() != null ? cycle.getStartDate().getMonthValue() : (request.getMonth() != null ? request.getMonth() : LocalDate.now().getMonthValue());
         int year = cycle.getStartDate() != null ? cycle.getStartDate().getYear() : (request.getYear() != null ? request.getYear() : LocalDate.now().getYear());
 
-        String anomalyStatus = alertEngineService.evaluateLeakStatus(meter.getMeterId(), units);
+        String anomalyStatus = "NORMAL";
 
         // Deduplication: Find existing usage for meter + billing cycle safely
         WaterUsage usage = usageRepository.findTopByMeterMeterIdAndBillingCycleIdOrderByUsageIdDesc(meter.getMeterId(), cycle.getId())

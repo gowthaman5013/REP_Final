@@ -13,7 +13,7 @@ import com.smartwater.billing.common.exception.ResourceNotFoundException;
 import com.smartwater.billing.common.repository.*;
 import com.smartwater.billing.owner.repository.*;
 import com.smartwater.billing.resident.repository.*;
-import com.smartwater.billing.common.ml.HouseholdProperties;
+import com.smartwater.billing.common.config.HouseholdProperties;
 import com.smartwater.billing.resident.service.OccupancyService;
 import com.smartwater.billing.common.util.TokenGenerator;
 import org.springframework.context.annotation.Lazy;
@@ -94,19 +94,78 @@ public class AuthService {
             }
         }
 
-        if (user.getRole() == User.Role.BUILDING_OWNER) {
-            BuildingOwner owner = ownerRepository.findByUser(user)
-                    .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found"));
-            if (owner.getApprovalStatus() == BuildingOwner.ApprovalStatus.PENDING) {
-                throw new BadRequestException("Your owner account is pending approval by Super Admin.");
-            }
-            if (owner.getApprovalStatus() == BuildingOwner.ApprovalStatus.REJECTED) {
-                throw new BadRequestException("Your owner account registration has been rejected.");
+        // 1. If user account status is explicitly REJECTED
+        if (user.getStatus() == User.UserStatus.REJECTED) {
+            throw new BadRequestException("No account exists");
+        }
+
+        // 2. Specific checks for RESIDENT role
+        if (user.getRole() == User.Role.RESIDENT) {
+            Resident resident = residentRepository.findByUser(user)
+                    .or(() -> residentRepository.findByUserIdOrEmail(user.getUserId(), user.getEmail()))
+                    .or(() -> residentRepository.findByEmailIgnoreCase(user.getEmail()))
+                    .orElse(null);
+
+            if (resident != null) {
+                // If apartment was marked REJECTED
+                if ("REJECTED".equalsIgnoreCase(resident.getApartmentNumber())) {
+                    if (user.getStatus() != User.UserStatus.REJECTED) {
+                        user.setStatus(User.UserStatus.REJECTED);
+                        userRepository.save(user);
+                    }
+                    throw new BadRequestException("No account exists");
+                }
+
+                // Check active occupancy
+                boolean hasActiveOccupancy = occupancyRepository.findFirstByResidentResidentIdAndStatus(
+                        resident.getResidentId(), ApartmentOccupancy.OccupancyStatus.ACTIVE).isPresent();
+
+                List<OccupancyRequest> requests = occupancyRequestRepository.findAllByResidentId(resident.getResidentId());
+                boolean hasApprovedRequest = requests.stream().anyMatch(r -> r.getStatus() == OccupancyRequest.RequestStatus.APPROVED);
+                boolean hasPendingRequest = requests.stream().anyMatch(r -> r.getStatus() == OccupancyRequest.RequestStatus.PENDING);
+                boolean hasRejectedRequest = requests.stream().anyMatch(r -> r.getStatus() == OccupancyRequest.RequestStatus.REJECTED);
+
+                boolean isApproved = hasActiveOccupancy || hasApprovedRequest;
+
+                // Case: Rejected by owner
+                if (!isApproved && hasRejectedRequest && !hasPendingRequest) {
+                    if (user.getStatus() != User.UserStatus.REJECTED) {
+                        user.setStatus(User.UserStatus.REJECTED);
+                        userRepository.save(user);
+                    }
+                    throw new BadRequestException("No account exists");
+                }
+
+                // Case: Pending owner approval
+                if (!isApproved) {
+                    throw new BadRequestException("Your account is not approved yet");
+                }
+            } else if (user.getStatus() == User.UserStatus.PENDING) {
+                throw new BadRequestException("Your account is not approved yet");
             }
         }
 
-        if (user.getStatus() == User.UserStatus.INACTIVE || user.getStatus() == User.UserStatus.PENDING) {
-            throw new BadRequestException("Your account is not active. Please complete setup or wait for approval.");
+        // 3. Specific checks for BUILDING_OWNER role
+        if (user.getRole() == User.Role.BUILDING_OWNER) {
+            BuildingOwner owner = ownerRepository.findByUser(user)
+                    .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found"));
+            if (owner.getApprovalStatus() == BuildingOwner.ApprovalStatus.REJECTED || user.getStatus() == User.UserStatus.REJECTED) {
+                throw new BadRequestException("No account exists");
+            }
+            if (owner.getApprovalStatus() == BuildingOwner.ApprovalStatus.PENDING || user.getStatus() == User.UserStatus.PENDING) {
+                throw new BadRequestException("Your account is not approved yet");
+            }
+        }
+
+        // 4. General fallback status checks
+        if (user.getStatus() == User.UserStatus.REJECTED) {
+            throw new BadRequestException("No account exists");
+        }
+        if (user.getStatus() == User.UserStatus.PENDING) {
+            throw new BadRequestException("Your account is not approved yet");
+        }
+        if (user.getStatus() == User.UserStatus.INACTIVE) {
+            throw new BadRequestException("No account exists");
         }
 
         Authentication authentication = authenticationManager.authenticate(
@@ -273,7 +332,7 @@ public class AuthService {
                 .email(email)
                 .password(passwordEncoder.encode(request.getPassword().trim()))
                 .role(User.Role.RESIDENT)
-                .status(User.UserStatus.ACTIVE)
+                .status(User.UserStatus.PENDING)
                 .build();
         userRepository.save(user);
 
@@ -288,7 +347,7 @@ public class AuthService {
                     .phone(request.getPhone() != null ? request.getPhone().trim() : "")
                     .apartmentNumber("PENDING")
                     .invitationStatus(Resident.InvitationStatus.ACCEPTED)
-                    .accountStatus(Resident.AccountStatus.ACTIVE)
+                    .accountStatus(Resident.AccountStatus.INACTIVE)
                     .build();
             resident = residentRepository.save(resident);
         } else {
@@ -311,14 +370,8 @@ public class AuthService {
                 request.getChildrenCount()
         ));
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, request.getPassword().trim())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
         return LoginResponse.builder()
-                .token(jwt)
+                .token(null)
                 .userId(user.getUserId())
                 .name(user.getName())
                 .email(user.getEmail())

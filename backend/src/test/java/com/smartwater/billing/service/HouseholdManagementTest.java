@@ -2,7 +2,7 @@ package com.smartwater.billing.service;
 
 import com.smartwater.billing.common.entity.User;
 import com.smartwater.billing.common.exception.BadRequestException;
-import com.smartwater.billing.common.ml.HouseholdProperties;
+import com.smartwater.billing.common.config.HouseholdProperties;
 import com.smartwater.billing.common.repository.UserRepository;
 import com.smartwater.billing.owner.entity.Apartment;
 import com.smartwater.billing.owner.entity.Building;

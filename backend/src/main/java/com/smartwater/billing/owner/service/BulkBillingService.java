@@ -43,9 +43,8 @@ public class BulkBillingService {
     private final BillingCycleService billingCycleService;
     private final AlertEngineService alertEngineService;
     private final ApartmentRepository apartmentRepository;
-    private final com.smartwater.billing.common.ml.LeakDetectionService leakDetectionService;
 
-    public BulkBillingService(BuildingRepository buildingRepository, BillingCycleRepository billingCycleRepository, ResidentRepository residentRepository, WaterMeterRepository waterMeterRepository, WaterUsageRepository usageRepository, BillRepository billRepository, NotificationRepository notificationRepository, BuildingOwnerService ownerService, TariffCalculationService tariffCalculationService, BillingCycleService billingCycleService, AlertEngineService alertEngineService, ApartmentRepository apartmentRepository, com.smartwater.billing.common.ml.LeakDetectionService leakDetectionService) {
+    public BulkBillingService(BuildingRepository buildingRepository, BillingCycleRepository billingCycleRepository, ResidentRepository residentRepository, WaterMeterRepository waterMeterRepository, WaterUsageRepository usageRepository, BillRepository billRepository, NotificationRepository notificationRepository, BuildingOwnerService ownerService, TariffCalculationService tariffCalculationService, BillingCycleService billingCycleService, AlertEngineService alertEngineService, ApartmentRepository apartmentRepository) {
         this.buildingRepository = buildingRepository;
         this.billingCycleRepository = billingCycleRepository;
         this.residentRepository = residentRepository;
@@ -58,7 +57,6 @@ public class BulkBillingService {
         this.billingCycleService = billingCycleService;
         this.alertEngineService = alertEngineService;
         this.apartmentRepository = apartmentRepository;
-        this.leakDetectionService = leakDetectionService;
     }
 
 
@@ -643,7 +641,7 @@ public class BulkBillingService {
             double units = row.getUnitsConsumed() != null ? row.getUnitsConsumed() : Math.round((curReading - prevReading) * 100.0) / 100.0;
             totalUnits += units;
 
-            String anomalyStatus = alertEngineService.evaluateLeakStatus(meter.getMeterId(), units);
+            String anomalyStatus = "NORMAL";
             if (!"NORMAL".equalsIgnoreCase(anomalyStatus) && !"OK".equalsIgnoreCase(anomalyStatus) && !"NONE".equalsIgnoreCase(anomalyStatus) && anomalyStatus != null && !anomalyStatus.isBlank()) {
                 anomaliesCount++;
             }
@@ -697,12 +695,7 @@ public class BulkBillingService {
         // 3. Persist water usage records atomically
         usageRepository.saveAllAndFlush(usageRecordsToSave);
 
-        // 4. Execute ML leak detection scoring synchronously so records are scored
-        try {
-            leakDetectionService.scoreBillingCycle(buildingId, cycleId);
-        } catch (Exception ex) {
-            log.warn("Could not score leak detection for cycle #{}: {}", cycleId, ex.getMessage());
-        }
+
 
         log.info("Successfully imported {} water meter readings for building '{}', cycle #{}. Cycle remains OPEN.",
                 usageRecordsToSave.size(), building.getBuildingName(), cycleId);
@@ -938,7 +931,7 @@ public class BulkBillingService {
             double units = Math.round((curReading - trustedPrevReading) * 100.0) / 100.0;
             totalUnitsBilled += units;
 
-            String anomalyStatus = alertEngineService.evaluateLeakStatus(meter.getMeterId(), units);
+            String anomalyStatus = "NORMAL";
             if (!"NORMAL".equalsIgnoreCase(anomalyStatus) && !"OK".equalsIgnoreCase(anomalyStatus) && !"NONE".equalsIgnoreCase(anomalyStatus) && anomalyStatus != null && !anomalyStatus.isBlank()) {
                 anomaliesCount++;
             }
@@ -988,12 +981,7 @@ public class BulkBillingService {
         // 7. Persist WaterUsage records within the transaction
         usageRepository.saveAllAndFlush(usageRecordsToSave);
 
-        // Execute ML leak detection scoring synchronously so records are scored
-        try {
-            leakDetectionService.scoreBillingCycle(buildingId, cycleId);
-        } catch (Exception ex) {
-            log.warn("Could not score leak detection for cycle #{}: {}", cycleId, ex.getMessage());
-        }
+
 
         // 8. Invoke BillingCycleService.finalizeCycle (joins existing @Transactional)
         BillingCycle finalizedCycle = billingCycleService.finalizeCycle(cycleId);

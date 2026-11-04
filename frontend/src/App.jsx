@@ -32,8 +32,6 @@ import ResidentNotificationsPage from './resident/pages/ResidentNotificationsPag
 import ProfilePage from './shared/pages/ProfilePage';
 import InvoicesPage from './owner/pages/InvoicesPage';
 import OwnerHistoryPage from './owner/pages/OwnerHistoryPage';
-import OwnerLeakMonitoringPage from './owner/pages/OwnerLeakMonitoringPage';
-import ResidentLeakStatusPage from './resident/pages/ResidentLeakStatusPage';
 
 export default function App() {
   return (
@@ -42,7 +40,7 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register-owner" element={<RegisterOwnerPage />} />
             <Route path="/register-resident" element={<RegisterResidentPage />} />
@@ -70,14 +68,12 @@ export default function App() {
             <Route path="/owner/bulk-billing" element={<BulkBillingPage />} />
             <Route path="/owner/invoices" element={<InvoicesPage />} />
             <Route path="/owner/history" element={<OwnerHistoryPage />} />
-            <Route path="/owner/leak-monitoring" element={<OwnerLeakMonitoringPage />} />
             <Route path="/owner/profile" element={<ProfilePage />} />
           </Route>
 
           {/* Resident Routes */}
           <Route element={<DashboardLayout allowedRole="RESIDENT" />}>
             <Route path="/resident/dashboard" element={<ResidentDashboard />} />
-            <Route path="/resident/leak-status" element={<ResidentLeakStatusPage />} />
             <Route path="/resident/bills" element={<ResidentBillsPage />} />
             <Route path="/resident/comparison" element={<ResidentComparisonPage />} />
             <Route path="/resident/notifications" element={<ResidentNotificationsPage />} />

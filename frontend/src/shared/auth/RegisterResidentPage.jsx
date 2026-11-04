@@ -23,6 +23,7 @@ export default function RegisterResidentPage() {
   const [buildingsList, setBuildingsList] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingApts, setLoadingApts] = useState(false);
 
@@ -186,8 +187,12 @@ export default function RegisterResidentPage() {
         childrenCount: parseInt(formData.childrenCount, 10)
       };
 
-      await registerResident(payload);
-      navigate('/resident/dashboard');
+      const res = await registerResident(payload);
+      if (res && res.token) {
+        navigate('/resident/dashboard');
+      } else {
+        setSuccessMsg(res?.message || 'Registration submitted successfully! Your account is pending Building Owner approval. Once approved, you can sign in.');
+      }
     } catch (err) {
       console.error('Resident registration failed:', err);
       const msg = err.response?.data?.message || err.response?.data?.error || err.message || 'Registration failed. Please check your inputs.';
@@ -223,6 +228,22 @@ export default function RegisterResidentPage() {
             </div>
           )}
 
+          {successMsg ? (
+            <div className="py-3 text-center">
+              <div className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style={{ width: 64, height: 64, backgroundColor: '#E8F5E9', color: '#2E7D32' }}>
+                <i className="bi bi-check-circle-fill fs-1"></i>
+              </div>
+              <h4 className="fw-bold text-dark mb-2">Registration Submitted</h4>
+              <p className="text-muted mb-4 fs-7 px-md-3">
+                {successMsg}
+              </p>
+              <div className="d-flex justify-content-center gap-2">
+                <Link to="/login" className="btn px-4 py-2 text-white fw-bold shadow-sm" style={{ backgroundColor: '#005F73' }}>
+                  Proceed to Sign In <i className="bi bi-box-arrow-in-right ms-1"></i>
+                </Link>
+              </div>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} noValidate>
             <div className="row g-3 mb-3">
               <div className="col-12">
@@ -506,6 +527,7 @@ export default function RegisterResidentPage() {
               )}
             </button>
           </form>
+          )}
 
           {/* Footer Navigation */}
           <div className="mt-4 pt-3 border-top text-center" style={{ borderColor: '#E8F4FA' }}>

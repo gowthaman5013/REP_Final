@@ -387,9 +387,22 @@ public class ResidentService {
                 if (changed) {
                     residentRepository.save(r);
                 }
-            } else if (r.getAccountStatus() == Resident.AccountStatus.ACTIVE && (r.getApartmentNumber() == null || r.getApartmentNumber().startsWith("FORMER-") || r.getApartmentNumber().equalsIgnoreCase("Vacated"))) {
-                r.setAccountStatus(Resident.AccountStatus.INACTIVE);
-                residentRepository.save(r);
+            } else {
+                boolean hasPending = occupancyRequestRepository.findActiveRequestByResidentId(r.getResidentId(), OccupancyRequest.RequestStatus.PENDING).isPresent();
+                if (!hasPending) {
+                    boolean changed = false;
+                    if (r.getAccountStatus() != Resident.AccountStatus.INACTIVE) {
+                        r.setAccountStatus(Resident.AccountStatus.INACTIVE);
+                        changed = true;
+                    }
+                    if ("PENDING".equalsIgnoreCase(r.getApartmentNumber())) {
+                        r.setApartmentNumber("REJECTED");
+                        changed = true;
+                    }
+                    if (changed) {
+                        residentRepository.save(r);
+                    }
+                }
             }
         }
 
@@ -410,11 +423,13 @@ public class ResidentService {
             residents = residentRepository.findByBuildingOwnerOwnerId(owner.getOwnerId());
         }
 
-        // When active status is requested, guarantee former users are excluded
+        // When active status is requested, guarantee former, pending, or rejected users are excluded
         if (status == Resident.AccountStatus.ACTIVE) {
             residents = residents.stream()
                     .filter(r -> r.getAccountStatus() == Resident.AccountStatus.ACTIVE
                             && r.getApartmentNumber() != null
+                            && !r.getApartmentNumber().equalsIgnoreCase("PENDING")
+                            && !r.getApartmentNumber().equalsIgnoreCase("REJECTED")
                             && !r.getApartmentNumber().startsWith("FORMER-")
                             && !r.getApartmentNumber().equalsIgnoreCase("Vacated"))
                     .collect(Collectors.toList());

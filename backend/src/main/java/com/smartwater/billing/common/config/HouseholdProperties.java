@@ -1,4 +1,4 @@
-package com.smartwater.billing.common.ml;
+package com.smartwater.billing.common.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -55,3 +55,4 @@ public class HouseholdProperties {
     public Limits getLimits() { return limits; }
     public void setLimits(Limits limits) { this.limits = limits; }
 }
+

@@ -59,14 +59,6 @@ export default function Navbar() {
 
         <div className="collapse navbar-collapse" id="navbarContent">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
-            {!user ? (
-              <>
-                <li className="nav-item"><Link className="nav-link" to="/">Home</Link></li>
-                <li className="nav-item"><a className="nav-link" href="#about">About</a></li>
-                <li className="nav-item"><a className="nav-link" href="#services">Services</a></li>
-                <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>
-              </>
-            ) : null}
           </ul>
 
           <div className="d-flex align-items-center gap-3">
@@ -101,12 +93,7 @@ export default function Navbar() {
                   </li>
                 </ul>
               </div>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-sprink-secondary px-4 fw-semibold">Login</Link>
-                <Link to="/register-owner" className="btn btn-sprink-primary px-4 fw-bold">Register Owner</Link>
-              </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

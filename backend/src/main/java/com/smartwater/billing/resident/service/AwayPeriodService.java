@@ -2,7 +2,7 @@ package com.smartwater.billing.resident.service;
 
 import com.smartwater.billing.common.exception.BadRequestException;
 import com.smartwater.billing.common.exception.ResourceNotFoundException;
-import com.smartwater.billing.common.ml.HouseholdProperties;
+import com.smartwater.billing.common.config.HouseholdProperties;
 import com.smartwater.billing.resident.dto.HouseholdDTOs.AwayPeriodRequest;
 import com.smartwater.billing.resident.dto.HouseholdDTOs.AwayPeriodResponse;
 import com.smartwater.billing.resident.entity.ApartmentOccupancy;

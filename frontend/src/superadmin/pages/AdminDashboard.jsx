@@ -69,17 +69,14 @@ export default function AdminDashboard() {
       </div>
 
       <div className="row g-3 mb-4">
-        <div className="col-md-6 col-lg-3">
+        <div className="col-md-4">
           <StatCard title="Total Building Owners" value={stats?.totalOwners || 0} icon="bi-person-badge" />
         </div>
-        <div className="col-md-6 col-lg-3">
+        <div className="col-md-4">
           <StatCard title="Pending Approvals" value={stats?.pendingOwners || 0} icon="bi-clock-history" subtext="Requires Action" />
         </div>
-        <div className="col-md-6 col-lg-3">
+        <div className="col-md-4">
           <StatCard title="Total Buildings" value={stats?.totalBuildings || 0} icon="bi-building" />
-        </div>
-        <div className="col-md-6 col-lg-3">
-          <StatCard title="Total Residents" value={stats?.totalResidents || 0} icon="bi-people" />
         </div>
       </div>
 
