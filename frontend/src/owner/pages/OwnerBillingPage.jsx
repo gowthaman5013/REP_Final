@@ -505,10 +505,10 @@ export default function OwnerBillingPage() {
                 <div className="mt-3 pt-3 border-top text-center">
                   <button
                     type="button"
-                    className="btn btn-outline-primary btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1.5"
+                    className={`btn ${isFinalized ? 'btn-outline-secondary' : 'btn-outline-primary'} btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1.5`}
                     onClick={() => setActiveTab('PURCHASES')}
                   >
-                    <i className="bi bi-truck"></i> Navigate to Bulk Water Purchases for Cycle #{selectedCycleId} →
+                    <i className={`bi ${isFinalized ? 'bi-eye' : 'bi-truck'}`}></i> Navigate to Bulk Water Purchases {isFinalized ? '(Read-Only) ' : ''}for Cycle #{selectedCycleId} →
                   </button>
                 </div>
               )}
@@ -542,15 +542,15 @@ export default function OwnerBillingPage() {
                           </td>
                           <td>
                             <button
-                              className="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8 fw-semibold d-flex align-items-center gap-1"
+                              className={`btn btn-sm ${c.status === 'OPEN' ? 'btn-outline-primary' : 'btn-outline-secondary'} py-1 px-2.5 fs-8 fw-semibold d-flex align-items-center gap-1`}
                               onClick={() => {
                                 setSelectedCycleId(c.id);
                                 fetchCycleData(selectedBuildingId, c.id);
                                 setActiveTab('PURCHASES');
                               }}
-                              title="Navigate to Bulk Water Purchases for this cycle"
+                              title={c.status === 'OPEN' ? 'Navigate to Bulk Water Purchases for this cycle' : 'View Bulk Water Purchases (Read-Only)'}
                             >
-                              <i className="bi bi-truck"></i> {String(c.id) === String(selectedCycleId) && purchases.length > 0 ? `${purchases.length} Purchase(s)` : 'Manage Purchases →'}
+                              <i className={`bi ${c.status === 'OPEN' ? 'bi-truck' : 'bi-eye'}`}></i> {c.status === 'OPEN' ? (String(c.id) === String(selectedCycleId) && purchases.length > 0 ? `${purchases.length} Purchase(s)` : 'Manage Purchases →') : 'View Purchases (Read-Only) →'}
                             </button>
                           </td>
                           <td>
@@ -648,7 +648,7 @@ export default function OwnerBillingPage() {
 
           <div className="col-lg-4">
             <div className="card glass-card border-0 p-4 shadow-sm">
-              <h5 className="fw-bold mb-3 text-dark"><i className="bi bi-truck-front-fill text-secondary me-2"></i>Add Bulk Purchase</h5>
+              <h5 className="fw-bold mb-3 text-dark"><i className={`bi ${isFinalized ? "bi-lock-fill" : "bi-truck-front-fill"} text-secondary me-2`}></i>{isFinalized ? "Add Bulk Purchase (Locked / Read-Only)" : "Add Bulk Purchase"}</h5>
               <form onSubmit={handleRecordPurchase}>
                 <div className="mb-3">
                   <label className="form-label fw-semibold fs-7 text-dark">Supplier *</label>
@@ -666,8 +666,8 @@ export default function OwnerBillingPage() {
                   <label className="form-label fw-semibold fs-7 text-dark">Unit Cost (₹/kL) *</label>
                   <input type="number" step="0.1" min="0" className="form-control" value={purchaseForm.unitCost} onChange={e => setPurchaseForm({...purchaseForm, unitCost: e.target.value})} disabled={isFinalized} required />
                 </div>
-                <button type="submit" className="btn btn-primary w-100 fw-bold" disabled={isFinalized}>
-                  <i className="bi bi-plus-circle me-1"></i> Record Purchase
+                <button type="submit" className={`btn ${isFinalized ? 'btn-secondary' : 'btn-primary'} w-100 fw-bold`} disabled={isFinalized}>
+                  <i className={`bi ${isFinalized ? 'bi-lock-fill' : 'bi-plus-circle'} me-1`}></i> {isFinalized ? 'Cycle Finalized (Read-Only)' : 'Record Purchase'}
                 </button>
               </form>
             </div>
