@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   Cell
 } from 'recharts';
 import API from '../../shared/services/api';
@@ -16,7 +15,6 @@ import LoadingSpinner from '../../shared/components/LoadingSpinner';
 export default function WaterPredictionCard() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchPrediction = async () => {
@@ -33,13 +31,8 @@ export default function WaterPredictionCard() {
       );
     } finally {
       setLoading(false);
-      setInitialLoaded(true);
     }
   };
-
-  useEffect(() => {
-    fetchPrediction();
-  }, []);
 
   // Format currency
   const formatCurrency = (val) => {
@@ -82,33 +75,59 @@ export default function WaterPredictionCard() {
         </div>
 
         <div className="d-flex align-items-center gap-2">
-          {prediction && (
+          {prediction ? (
             <span className="badge bg-light text-muted border px-2.5 py-1.5 fs-8">
               Target: <strong className="text-dark">{prediction.predictionMonthLabel}</strong>
             </span>
+          ) : (
+            <button
+              className="btn btn-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 shadow-sm"
+              onClick={fetchPrediction}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                  Predicting...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-lightning-charge-fill"></i>
+                  Predict Now
+                </>
+              )}
+            </button>
           )}
-          <button
-            className="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold d-flex align-items-center gap-1.5"
-            onClick={fetchPrediction}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                Predicting...
-              </>
-            ) : (
-              <>
-                <i className="bi bi-arrow-clockwise"></i>
-                Refresh Prediction
-              </>
-            )}
-          </button>
         </div>
       </div>
 
-      {/* Loading state before initial load */}
-      {loading && !initialLoaded && (
+      {/* Initial state before user clicks Predict Now */}
+      {!prediction && !loading && !error && (
+        <div className="py-4 text-center border rounded-3 bg-light-subtle my-2">
+          <div
+            className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs"
+            style={{ width: 52, height: 52, backgroundColor: '#EFF6FF', color: '#2563EB' }}
+          >
+            <i className="bi bi-graph-up-arrow fs-3"></i>
+          </div>
+          <h6 className="fw-bold text-dark mb-1">
+            Forecast Next Month's Water & Bill
+          </h6>
+          <p className="text-muted fs-7 mb-3 mx-auto" style={{ maxWidth: 500 }}>
+            Click below to calculate your next month's projected water usage and estimated bill amount using our trained Random Forest regression model.
+          </p>
+          <button
+            className="btn btn-primary rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+            onClick={fetchPrediction}
+          >
+            <i className="bi bi-lightning-charge-fill"></i>
+            Predict Now
+          </button>
+        </div>
+      )}
+
+      {/* Loading state during prediction */}
+      {loading && (
         <div className="py-5 text-center">
           <LoadingSpinner />
           <p className="text-muted fs-7 mt-2 mb-0">
@@ -124,14 +143,14 @@ export default function WaterPredictionCard() {
             <i className="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
             <span className="fs-7 text-dark">{error}</span>
           </div>
-          <button className="btn btn-sm btn-outline-dark" onClick={fetchPrediction}>
-            Retry
+          <button className="btn btn-sm btn-outline-dark rounded-pill px-3" onClick={fetchPrediction}>
+            Predict Now
           </button>
         </div>
       )}
 
       {/* Prediction Content */}
-      {prediction && (
+      {prediction && !loading && (
         <>
           {/* Key Metric Cards */}
           <div className="row g-3 mb-4">
