@@ -32,7 +32,7 @@ export default function ResidentComparisonPage() {
   const isAbove = householdUsage > apartmentAvg;
 
   const barData = [
-    { name: 'Your Household', usage: householdUsage, color: isAbove ? '#5A738E' : '#0A9396' },
+    { name: 'Your Household', usage: householdUsage, color: isAbove ? '#DC2626' : '#0A9396' },
     { name: 'Apartment Average', usage: apartmentAvg, color: '#005F73' },
     { name: 'Similar Households', usage: similarAvg, color: '#94D2BD' }
   ];
@@ -56,19 +56,19 @@ export default function ResidentComparisonPage() {
       <div
         className="card border-0 shadow-sm p-4 mb-4 rounded-4"
         style={{
-          backgroundColor: isAbove ? '#EBF1F6' : '#E8F8F5',
-          borderLeft: `5px solid ${isAbove ? '#5A738E' : '#0E6251'}`
+          backgroundColor: isAbove ? '#FEF2F2' : '#E8F8F5',
+          borderLeft: `5px solid ${isAbove ? '#DC2626' : '#0E6251'}`
         }}
       >
         <div className="d-flex align-items-center gap-3">
           <div
             className="rounded-circle p-3 d-flex align-items-center justify-content-center text-white"
-            style={{ width: 50, height: 50, backgroundColor: isAbove ? '#5A738E' : '#0E6251' }}
+            style={{ width: 50, height: 50, backgroundColor: isAbove ? '#DC2626' : '#0E6251' }}
           >
-            <i className={`bi ${isAbove ? 'bi-info-circle-fill' : 'bi-check-circle-fill'} fs-4`}></i>
+            <i className={`bi ${isAbove ? 'bi-exclamation-circle-fill' : 'bi-check-circle-fill'} fs-4`}></i>
           </div>
           <div>
-            <h5 className="fw-bold mb-1" style={{ color: isAbove ? '#003554' : '#0E6251' }}>
+            <h5 className="fw-bold mb-1" style={{ color: isAbove ? '#DC2626' : '#0E6251' }}>
               {isAbove ? 'Higher Than Average Consumption' : 'Efficient Consumption'}
             </h5>
             <p className="mb-0 fs-7 fw-semibold text-dark">{data?.message}</p>

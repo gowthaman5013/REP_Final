@@ -225,7 +225,7 @@ export default function OwnerUsageComparisonPage() {
         <div className="col-12 col-md-4">
           <div className="card glass-card border shadow-sm p-3 bg-white rounded-4">
             <small className="text-muted fw-semibold text-uppercase fs-8 d-block mb-1">Above Average Households</small>
-            <h3 className="fw-extrabold mb-0" style={{ color: '#5A738E' }}>
+            <h3 className="fw-extrabold mb-0 text-danger">
               {households.filter(h => (h.unitsConsumed || 0) > bAvg && (h.unitsConsumed || 0) > 0).length} <span className="fs-6 text-muted fw-normal">Households</span>
             </h3>
             <small className="text-muted mt-1 d-block fs-8">
@@ -308,7 +308,7 @@ export default function OwnerUsageComparisonPage() {
                   {chartData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={entry.isZero ? '#CBD5E1' : entry.isAbove ? '#5A738E' : '#005F73'}
+                      fill={entry.isZero ? '#CBD5E1' : entry.isAbove ? '#DC2626' : '#005F73'}
                     />
                   ))}
                 </Bar>
@@ -377,7 +377,7 @@ export default function OwnerUsageComparisonPage() {
                           {isZero ? (
                             <span className="text-muted">&mdash;</span>
                           ) : diff > 0 ? (
-                            <span className="fw-bold" style={{ color: '#5A738E' }}>+{diff} kL above avg</span>
+                            <span className="text-danger fw-bold">+{diff} kL above avg</span>
                           ) : (
                             <span className="text-success fw-bold">{diff} kL below avg</span>
                           )}
@@ -388,7 +388,7 @@ export default function OwnerUsageComparisonPage() {
                               VACANT / NO USAGE
                             </span>
                           ) : isAbove ? (
-                            <span className="badge badge-slate-blue px-3 py-1.5 fw-bold fs-8">
+                            <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1.5 fw-bold fs-8">
                               HIGH (Above Avg)
                             </span>
                           ) : (
