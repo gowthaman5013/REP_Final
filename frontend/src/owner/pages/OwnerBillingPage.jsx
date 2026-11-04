@@ -285,8 +285,7 @@ export default function OwnerBillingPage() {
         `• Bills generated: All active residents\n` +
         `• Notifications created: Yes\n` +
         `• Email notifications dispatched: Yes`);
-      fetchData(selectedBuildingId, cycleId);
-      setActiveTab('INVOICES');
+      await fetchData(selectedBuildingId, cycleId);
     } catch (err) {
       alert(err.response?.data?.message || 'Finalization failed. Please verify meter readings are recorded for all residents.');
     } finally {
@@ -564,9 +563,31 @@ export default function OwnerBillingPage() {
                               </button>
                              )}
                             {c.status === 'FINALIZED' && (
-                              <button className="btn btn-sm btn-outline-secondary" onClick={() => handleArchiveCycle(c.id)}>
-                                <i className="bi bi-archive me-1"></i> Archive
-                              </button>
+                              <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                <button
+                                  className="btn btn-sm btn-success fw-bold d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-8 shadow-xs"
+                                  onClick={() => {
+                                    setSelectedCycleId(c.id);
+                                    fetchCycleData(selectedBuildingId, c.id);
+                                    setActiveTab('INVOICES');
+                                  }}
+                                  title="View Finalized and Issued Bills for this cycle"
+                                >
+                                  <i className="bi bi-check2-all"></i> Finalized and Issued Bill
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-secondary py-1 px-2 fs-8"
+                                  onClick={() => handleArchiveCycle(c.id)}
+                                  title="Archive this finalized billing cycle"
+                                >
+                                  <i className="bi bi-archive me-1"></i> Archive
+                                </button>
+                              </div>
+                            )}
+                            {c.status === 'ARCHIVED' && (
+                              <span className="badge bg-light text-muted border py-1.5 px-2.5 fs-8">
+                                <i className="bi bi-archive-fill me-1"></i> Archived
+                              </span>
                             )}
                           </td>
                         </tr>
