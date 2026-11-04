@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -206,28 +207,60 @@ public class AuthService {
 
     @Transactional
     public MessageResponse registerOwner(RegisterOwnerRequest request) {
-        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
-            throw new BadRequestException("Email is already registered!");
+        String email = request.getEmail().trim().toLowerCase();
+        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        User user;
+        BuildingOwner owner;
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            BuildingOwner existingOwner = ownerRepository.findByUser(existingUser)
+                    .or(() -> ownerRepository.findByUserIdOrEmail(existingUser.getUserId(), email))
+                    .orElse(null);
+            boolean isRejected = existingUser.getStatus() == User.UserStatus.REJECTED ||
+                    (existingOwner != null && existingOwner.getApprovalStatus() == BuildingOwner.ApprovalStatus.REJECTED);
+            if (!isRejected) {
+                throw new BadRequestException("Email is already registered!");
+            }
+            existingUser.setName(request.getName().trim());
+            existingUser.setPassword(passwordEncoder.encode(request.getPassword()));
+            existingUser.setRole(User.Role.BUILDING_OWNER);
+            existingUser.setStatus(User.UserStatus.PENDING);
+            user = userRepository.save(existingUser);
+
+            if (existingOwner != null) {
+                existingOwner.setName(request.getName().trim());
+                existingOwner.setPhone(request.getPhone().trim());
+                existingOwner.setApprovalStatus(BuildingOwner.ApprovalStatus.PENDING);
+                owner = ownerRepository.save(existingOwner);
+            } else {
+                owner = BuildingOwner.builder()
+                        .user(user)
+                        .name(request.getName().trim())
+                        .phone(request.getPhone().trim())
+                        .approvalStatus(BuildingOwner.ApprovalStatus.PENDING)
+                        .build();
+                owner = ownerRepository.save(owner);
+            }
+        } else {
+            // Save User
+            user = User.builder()
+                    .name(request.getName().trim())
+                    .email(email)
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .role(User.Role.BUILDING_OWNER)
+                    .status(User.UserStatus.PENDING)
+                    .build();
+            user = userRepository.save(user);
+
+            // Save Building Owner
+            owner = BuildingOwner.builder()
+                    .user(user)
+                    .name(request.getName().trim())
+                    .phone(request.getPhone().trim())
+                    .approvalStatus(BuildingOwner.ApprovalStatus.PENDING)
+                    .build();
+            owner = ownerRepository.save(owner);
         }
-
-        // Save User
-        User user = User.builder()
-                .name(request.getName().trim())
-                .email(request.getEmail().trim().toLowerCase())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.BUILDING_OWNER)
-                .status(User.UserStatus.PENDING)
-                .build();
-        userRepository.save(user);
-
-        // Save Building Owner
-        BuildingOwner owner = BuildingOwner.builder()
-                .user(user)
-                .name(request.getName().trim())
-                .phone(request.getPhone().trim())
-                .approvalStatus(BuildingOwner.ApprovalStatus.PENDING)
-                .build();
-        ownerRepository.save(owner);
 
         // Save Initial Building
         Building building = Building.builder()
@@ -251,9 +284,38 @@ public class AuthService {
             throw new BadRequestException("Email address is required.");
         }
         String email = request.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmail(email)) {
-            throw new BadRequestException("An account with email '" + email + "' is already registered! Please log in.");
+        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        User user;
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            boolean isRejectedOrVacated = false;
+            if (existingUser.getStatus() == User.UserStatus.REJECTED) {
+                isRejectedOrVacated = true;
+            } else if (existingUser.getRole() == User.Role.RESIDENT) {
+                Resident existingRes = residentRepository.findByUser(existingUser)
+                        .or(() -> residentRepository.findByEmailIgnoreCase(email))
+                        .orElse(null);
+                if (existingRes != null && ("REJECTED".equalsIgnoreCase(existingRes.getApartmentNumber())
+                        || "Vacated".equalsIgnoreCase(existingRes.getApartmentNumber())
+                        || existingRes.getAccountStatus() == Resident.AccountStatus.INACTIVE)) {
+                    isRejectedOrVacated = true;
+                }
+            }
+
+            if (!isRejectedOrVacated) {
+                throw new BadRequestException("An account with email '" + email + "' is already registered! Please log in.");
+            }
+
+            // Reset and reuse existing user as a fresh pending resident
+            existingUser.setName(request.getName().trim());
+            existingUser.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+            existingUser.setRole(User.Role.RESIDENT);
+            existingUser.setStatus(User.UserStatus.PENDING);
+            user = userRepository.save(existingUser);
+        } else {
+            user = null; // will be created below after input validation
         }
+
         if (request.getPassword() == null || request.getPassword().trim().length() < 6) {
             throw new BadRequestException("Password must be at least 6 characters long.");
         }
@@ -326,17 +388,19 @@ public class AuthService {
             throw new BadRequestException("Children count cannot exceed total people.");
         }
 
-        // Save User with explicit RESIDENT role only
-        User user = User.builder()
-                .name(request.getName().trim())
-                .email(email)
-                .password(passwordEncoder.encode(request.getPassword().trim()))
-                .role(User.Role.RESIDENT)
-                .status(User.UserStatus.PENDING)
-                .build();
-        userRepository.save(user);
+        if (user == null) {
+            // Save User with explicit RESIDENT role only
+            user = User.builder()
+                    .name(request.getName().trim())
+                    .email(email)
+                    .password(passwordEncoder.encode(request.getPassword().trim()))
+                    .role(User.Role.RESIDENT)
+                    .status(User.UserStatus.PENDING)
+                    .build();
+            user = userRepository.save(user);
+        }
 
-        // Check if pre-existing resident row exists (e.g. from invitation)
+        // Check if pre-existing resident row exists (e.g. from invitation or previous rejected record)
         Resident resident = residentRepository.findByEmailIgnoreCase(email).orElse(null);
         if (resident == null) {
             resident = Resident.builder()
@@ -357,9 +421,18 @@ public class AuthService {
             if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
                 resident.setPhone(request.getPhone().trim());
             }
+            resident.setApartmentNumber("PENDING");
             resident.setInvitationStatus(Resident.InvitationStatus.ACCEPTED);
-            resident.setAccountStatus(Resident.AccountStatus.ACTIVE);
+            resident.setAccountStatus(Resident.AccountStatus.INACTIVE);
             resident = residentRepository.save(resident);
+        }
+
+        // Clean up previous REJECTED occupancy requests for this resident so the new registration is clean
+        List<OccupancyRequest> oldRejected = occupancyRequestRepository.findAllByResidentId(resident.getResidentId()).stream()
+                .filter(r -> r.getStatus() == OccupancyRequest.RequestStatus.REJECTED)
+                .collect(Collectors.toList());
+        if (!oldRejected.isEmpty()) {
+            occupancyRequestRepository.deleteAll(oldRejected);
         }
 
         // Automatically submit occupancy request with household diagnostic details
